@@ -224,82 +224,78 @@ export function PomodoroTimer({
   const phaseInfo = getPhaseInfo();
 
   return (
-    <div className="flex flex-col items-center mb-8">
-      {/* Phase Indicator */}
-      <Badge className={`mb-6 px-4 py-2 backdrop-blur-sm ${phaseInfo.color}`}>
+    <div className="flex flex-col items-center mb-10">
+      {/* Phase badge */}
+      <Badge className={`mb-8 px-4 py-2 backdrop-blur-sm ${phaseInfo.color}`}>
         <div className="flex items-center gap-2">
           {phaseInfo.icon}
-          <div className="text-center">
-            <div className="font-semibold">{phaseInfo.title}</div>
-            <div className="text-xs opacity-80">{phaseInfo.subtitle}</div>
+          <div>
+            <div className="font-semibold text-sm">{phaseInfo.title}</div>
+            <div className="text-xs opacity-70">{phaseInfo.subtitle}</div>
           </div>
         </div>
       </Badge>
 
-      {/* Timer Display */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="bg-black/60 backdrop-blur-sm border border-white/20 rounded-xl px-6 py-3 text-white text-2xl font-mono font-bold tracking-wider">
-          {formatTime(timeRemaining)}
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={onEndSession}
-            size="sm"
-            className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-full w-8 h-8 p-0"
-            variant="ghost"
-            title="End Session"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            onClick={togglePause}
-            size="sm"
-            className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 rounded-full w-8 h-8 p-0"
-            variant="ghost"
-            title={isPaused ? "Resume" : "Pause"}
-          >
-            {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-          </Button>
-          
-          <Button
-            onClick={resetCurrentPhase}
-            size="sm"
-            className="bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-400 rounded-full w-8 h-8 p-0"
-            variant="ghost"
-            title="Reset Phase"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        </div>
+      {/* Large timer */}
+      <div className="timer-display mb-6">
+        {formatTime(timeRemaining)}
       </div>
 
-      {/* Progress Indicator */}
-      <div className="flex items-center gap-2 mb-4">
+      {/* Controls */}
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          onClick={onEndSession}
+          size="sm"
+          variant="ghost"
+          className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-full w-10 h-10 p-0"
+          title="End Session"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={togglePause}
+          size="sm"
+          variant="ghost"
+          className="bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-full w-10 h-10 p-0"
+          title={isPaused ? 'Resume' : 'Pause'}
+        >
+          {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+        </Button>
+        <Button
+          onClick={resetCurrentPhase}
+          size="sm"
+          variant="ghost"
+          className="bg-white/5 hover:bg-white/10 border border-white/10 text-white/50 rounded-full w-10 h-10 p-0"
+          title="Reset Phase"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Round progress dots */}
+      <div className="flex items-center gap-2 mb-5">
         {Array.from({ length: session.totalPomodoroRounds || 4 }, (_, i) => (
           <div
             key={i}
-            className={`w-3 h-3 rounded-full ${
+            className={`rounded-full transition-all duration-300 ${
               i < (session.pomodoroRound || 1) - 1
-                ? 'bg-green-500' // Completed
+                ? 'w-2.5 h-2.5 bg-green-500'
                 : i === (session.pomodoroRound || 1) - 1
-                ? 'bg-red-500' // Current
-                : 'bg-gray-600' // Upcoming
+                ? 'w-3 h-3 bg-white'
+                : 'w-2 h-2 bg-white/20'
             }`}
           />
         ))}
       </div>
 
-      {/* Skip Phase Button */}
+      {/* Skip */}
       <Button
         onClick={skipPhase}
-        variant="outline"
+        variant="ghost"
         size="sm"
-        className="bg-white/5 border-white/20 text-white/70 hover:bg-white/10 text-xs"
+        className="text-white/30 hover:text-white/60 text-xs"
       >
-        Skip Phase
+        Skip phase
       </Button>
     </div>
   );

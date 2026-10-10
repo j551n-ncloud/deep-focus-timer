@@ -79,15 +79,22 @@
   }
 }
 
+@keyframes float-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+@keyframes timer-pulse {
+  0%, 100% { text-shadow: 0 0 30px hsl(var(--timer-glow) / 0.4), 0 0 60px hsl(var(--timer-glow) / 0.15); }
+  50% { text-shadow: 0 0 40px hsl(var(--timer-glow) / 0.7), 0 0 80px hsl(var(--timer-glow) / 0.25); }
+}
+
 @layer components {
   .timer-display {
-    @apply text-6xl md:text-8xl font-mono font-bold tracking-widest text-white;
-    text-shadow: 0 0 40px rgba(0, 0, 0, 0.8), 0 0 20px hsl(var(--timer-glow) / 0.9);
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: var(--glass-blur);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 1rem;
-    padding: 1rem 2rem;
+    @apply text-7xl md:text-9xl font-mono font-bold tracking-widest text-white;
+    text-shadow: 0 0 30px hsl(var(--timer-glow) / 0.4), 0 0 60px hsl(var(--timer-glow) / 0.15);
+    animation: timer-pulse 3s ease-in-out infinite;
   }
   
   .glass-panel {

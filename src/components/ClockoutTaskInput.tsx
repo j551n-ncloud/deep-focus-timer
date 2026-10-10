@@ -3,9 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ContributionCalendar } from './ContributionCalendar';
 import { SessionType } from '@/hooks/useSessionPersistence';
 import { Timer, Target, Youtube, Calendar, Lock, Brain, Coffee, Zap, Briefcase } from 'lucide-react';
@@ -13,6 +11,49 @@ import { Timer, Target, Youtube, Calendar, Lock, Brain, Coffee, Zap, Briefcase }
 interface ClockoutTaskInputProps {
   onStartSession: (task: string, duration: number, youtubeUrl?: string, sessionType?: SessionType, pomodoroOptions?: any) => void;
 }
+
+const SESSION_TYPES = [
+  {
+    id: 'pomodoro' as SessionType,
+    icon: Brain,
+    label: 'Pomodoro',
+    desc: '25 min focus + 5 min breaks',
+    color: 'red',
+    selected: 'bg-red-500/20 border-red-400/60 ring-1 ring-red-400/30 shadow-lg shadow-red-500/10',
+    icon_color: 'text-red-400',
+    hover: 'hover:bg-white/10 hover:border-white/20',
+  },
+  {
+    id: 'deep-work' as SessionType,
+    icon: Zap,
+    label: 'Deep Work',
+    desc: '90 min uninterrupted focus',
+    color: 'blue',
+    selected: 'bg-blue-500/20 border-blue-400/60 ring-1 ring-blue-400/30 shadow-lg shadow-blue-500/10',
+    icon_color: 'text-blue-400',
+    hover: 'hover:bg-white/10 hover:border-white/20',
+  },
+  {
+    id: 'work-day' as SessionType,
+    icon: Briefcase,
+    label: 'Work Day',
+    desc: '8 hr day with hourly breaks',
+    color: 'green',
+    selected: 'bg-green-500/20 border-green-400/60 ring-1 ring-green-400/30 shadow-lg shadow-green-500/10',
+    icon_color: 'text-green-400',
+    hover: 'hover:bg-white/10 hover:border-white/20',
+  },
+  {
+    id: 'custom' as SessionType,
+    icon: Timer,
+    label: 'Custom',
+    desc: 'Set your own duration',
+    color: 'purple',
+    selected: 'bg-purple-500/20 border-purple-400/60 ring-1 ring-purple-400/30 shadow-lg shadow-purple-500/10',
+    icon_color: 'text-purple-400',
+    hover: 'hover:bg-white/10 hover:border-white/20',
+  },
+];
 
 export function ClockoutTaskInput({ onStartSession }: ClockoutTaskInputProps) {
   const [task, setTask] = useState('');
@@ -25,16 +66,16 @@ export function ClockoutTaskInput({ onStartSession }: ClockoutTaskInputProps) {
   const [shortBreakDuration, setShortBreakDuration] = useState(5);
   const [longBreakDuration, setLongBreakDuration] = useState(15);
 
-  // Update durations when session type changes
-  const handleSessionTypeChange = (newSessionType: SessionType) => {
-    setSessionType(newSessionType);
-    
-    if (newSessionType === 'work-day') {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSessionTypeChange = (newType: SessionType) => {
+    setSessionType(newType);
+    if (newType === 'work-day') {
       setFocusDuration(50);
       setShortBreakDuration(10);
       setLongBreakDuration(60);
       setPomodoroRounds(8);
-    } else if (newSessionType === 'pomodoro') {
+    } else if (newType === 'pomodoro') {
       setFocusDuration(25);
       setShortBreakDuration(5);
       setLongBreakDuration(15);
@@ -42,365 +83,270 @@ export function ClockoutTaskInput({ onStartSession }: ClockoutTaskInputProps) {
     }
   };
 
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const validateYouTubeUrl = (url: string) => {
     if (!url) return true;
-    const regex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-    return regex.test(url);
+    return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/.test(url);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (task.trim() && duration > 0) {
-      const pomodoroOptions = sessionType === 'pomodoro' ? {
-        rounds: pomodoroRounds,
-        focusDuration,
-        shortBreakDuration,
-        longBreakDuration,
-      } : sessionType === 'work-day' ? {
-        rounds: 8,
-        focusDuration: 50,
-        shortBreakDuration: 10,
-        longBreakDuration: 60,
-      } : undefined;
-      
-      onStartSession(task.trim(), duration, youtubeUrl || undefined, sessionType, pomodoroOptions);
-    }
-  };
+    if (!task.trim() || duration <= 0) return;
 
-  const handleImport = () => {
-    fileInputRef.current?.click();
+    const pomodoroOptions =
+      sessionType === 'pomodoro'
+        ? { rounds: pomodoroRounds, focusDuration, shortBreakDuration, longBreakDuration }
+        : sessionType === 'work-day'
+        ? { rounds: 8, focusDuration: 50, shortBreakDuration: 10, longBreakDuration: 60 }
+        : undefined;
+
+    onStartSession(task.trim(), duration, youtubeUrl || undefined, sessionType, pomodoroOptions);
   };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target?.result as string);
-          // Handle imported data (tasks, sessions, etc.)
-          console.log('Imported data:', data);
-        } catch (error) {
-          console.error('Failed to parse imported file:', error);
-        }
-      };
-      reader.readAsText(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        console.log('Imported data:', data);
+      } catch (error) {
+        console.error('Failed to parse imported file:', error);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const isValid = task.trim().length > 0 && duration > 0;
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
-      </div>
+      {/* Ambient background blobs */}
+      <div
+        className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full opacity-[0.06] pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #6366f1, transparent)', animation: 'float-blob 20s ease-in-out infinite' }}
+      />
+      <div
+        className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full opacity-[0.06] pointer-events-none"
+        style={{ background: 'radial-gradient(circle, #ec4899, transparent)', animation: 'float-blob 25s ease-in-out infinite reverse' }}
+      />
 
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          {/* Empty space for balance */}
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/5">
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 text-white">
+          <div className="h-8 w-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center">
+            <Target className="h-4 w-4 text-white" />
+          </div>
+          <span className="font-bold text-lg tracking-tight">clockout</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Badge className="bg-black/40 border-white/20 text-white backdrop-blur-sm px-3 py-1">
-            <Lock className="h-4 w-4 mr-2" />
-            Days Locked In: 0
-          </Badge>
-          
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-sm text-white/70">
+            <Lock className="h-3.5 w-3.5 text-white/50" />
+            <span>0 days locked in</span>
+          </div>
           <Button
-            variant="outline"
+            variant="ghost"
+            size="sm"
             onClick={() => setShowCalendar(true)}
-            className="bg-black/40 border-white/20 text-white hover:bg-white/10 backdrop-blur-sm"
+            className="text-white/60 hover:text-white hover:bg-white/10 w-9 h-9 p-0 rounded-lg"
           >
             <Calendar className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-[80vh] p-4">
-        <Card className="w-full max-w-2xl bg-black/60 backdrop-blur-sm border-white/20">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Target className="h-8 w-8 text-primary" />
-              <CardTitle className="text-3xl font-bold text-white">
-                Deep Focus Timer
-              </CardTitle>
-            </div>
-            <p className="text-white/70 text-lg">
-              Lock into a single task until completion. No distractions, just pure focus.
+      <main className="relative z-10 flex items-start justify-center min-h-[calc(100vh-65px)] p-6 pt-12">
+        <div className="w-full max-w-2xl">
+          {/* Hero */}
+          <div className="text-center mb-10">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+              Lock in. Build anything.
+            </h1>
+            <p className="text-white/40 text-base">
+              Deep focus sessions for ambitious work.
             </p>
-          </CardHeader>
+          </div>
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Task Input */}
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Task Input */}
+            <div className="space-y-2">
+              <Label htmlFor="task" className="text-sm font-medium text-white/70 flex items-center gap-2">
+                <Target className="h-3.5 w-3.5" />
+                What will you focus on?
+              </Label>
+              <Textarea
+                id="task"
+                placeholder="Describe your main task or goal for this session..."
+                value={task}
+                onChange={(e) => setTask(e.target.value)}
+                className="min-h-[90px] text-base bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/30 resize-none rounded-xl"
+                required
+              />
+            </div>
+
+            {/* Session Type Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-white/70 flex items-center gap-2">
+                <Timer className="h-3.5 w-3.5" />
+                Session type
+              </Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {SESSION_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const isSelected = sessionType === type.id;
+                  return (
+                    <button
+                      key={type.id}
+                      type="button"
+                      onClick={() => handleSessionTypeChange(type.id)}
+                      className={`relative rounded-xl border p-4 text-left transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? type.selected
+                          : `bg-white/[0.03] border-white/10 ${type.hover}`
+                      }`}
+                    >
+                      <Icon className={`h-6 w-6 mb-3 ${isSelected ? type.icon_color : 'text-white/50'}`} />
+                      <p className={`text-sm font-semibold mb-0.5 ${isSelected ? 'text-white' : 'text-white/80'}`}>
+                        {type.label}
+                      </p>
+                      <p className={`text-xs leading-snug ${isSelected ? 'text-white/60' : 'text-white/35'}`}>
+                        {type.desc}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Pomodoro Settings */}
+            {sessionType === 'pomodoro' && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 space-y-4">
+                <h4 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                  <Coffee className="h-4 w-4 text-red-400" />
+                  Pomodoro settings
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Rounds', value: pomodoroRounds, min: 1, max: 8, onChange: setPomodoroRounds },
+                    { label: 'Focus (min)', value: focusDuration, min: 15, max: 60, onChange: setFocusDuration },
+                    { label: 'Short break', value: shortBreakDuration, min: 3, max: 15, onChange: setShortBreakDuration },
+                    { label: 'Long break', value: longBreakDuration, min: 10, max: 30, onChange: setLongBreakDuration },
+                  ].map(({ label, value, min, max, onChange }) => (
+                    <div key={label}>
+                      <Label className="text-xs text-white/50 mb-1 block">{label}</Label>
+                      <Input
+                        type="number"
+                        min={min}
+                        max={max}
+                        value={value}
+                        onChange={(e) => onChange(parseInt(e.target.value))}
+                        className="bg-white/5 border-white/10 text-white text-sm h-9"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-white/40">
+                  Total:{' '}
+                  <span className="text-white/70 font-medium">
+                    {pomodoroRounds * focusDuration + (pomodoroRounds - 1) * shortBreakDuration + longBreakDuration} min
+                  </span>{' '}
+                  &mdash; {pomodoroRounds} rounds of {focusDuration} min focus + breaks
+                </p>
+              </div>
+            )}
+
+            {/* Duration info for preset types */}
+            {sessionType === 'deep-work' && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3">
+                <Zap className="h-5 w-5 text-blue-400 shrink-0" />
+                <div>
+                  <p className="text-white font-medium">90 minutes</p>
+                  <p className="text-white/50 text-sm">Optimal for deep work sessions</p>
+                </div>
+              </div>
+            )}
+
+            {sessionType === 'work-day' && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-start gap-3">
+                <Briefcase className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-white font-medium">8 hours total</p>
+                  <p className="text-white/50 text-sm">8 rounds of 50 min work + 10 min breaks + 1 hr lunch</p>
+                </div>
+              </div>
+            )}
+
+            {/* Custom duration */}
+            {sessionType === 'custom' && (
               <div className="space-y-2">
-                <Label htmlFor="task" className="text-base font-semibold flex items-center gap-2 text-white">
-                  <Target className="h-4 w-4" />
-                  What will you focus on?
+                <Label htmlFor="duration" className="text-sm font-medium text-white/70 flex items-center gap-2">
+                  <Timer className="h-3.5 w-3.5" />
+                  Duration (minutes)
                 </Label>
-                <Textarea
-                  id="task"
-                  placeholder="Enter your main task or goal for this session..."
-                  value={task}
-                  onChange={(e) => setTask(e.target.value)}
-                  className="min-h-[100px] text-base bg-white/5 border-white/20 text-white placeholder:text-white/50"
+                <Input
+                  id="duration"
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value))}
+                  className="text-base bg-white/5 border-white/10 text-white focus:border-white/30"
                   required
                 />
-              </div>
-
-              {/* Session Type Selection */}
-              <div className="space-y-4">
-                <Label className="text-base font-semibold flex items-center gap-2 text-white">
-                  <Timer className="h-4 w-4" />
-                  Session Type
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Card 
-                    className={`cursor-pointer transition-all duration-200 ${
-                      sessionType === 'pomodoro' 
-                        ? 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20' 
-                        : 'bg-white/5 border-white/20 hover:bg-white/10'
-                    }`}
-                    onClick={() => handleSessionTypeChange('pomodoro')}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Brain className="h-8 w-8 mx-auto mb-2 text-red-400" />
-                      <h3 className="font-semibold text-white mb-1">Pomodoro</h3>
-                      <p className="text-xs text-white/70">25min focus + 5min breaks</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card 
-                    className={`cursor-pointer transition-all duration-200 ${
-                      sessionType === 'deep-work' 
-                        ? 'bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20' 
-                        : 'bg-white/5 border-white/20 hover:bg-white/10'
-                    }`}
-                    onClick={() => handleSessionTypeChange('deep-work')}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Zap className="h-8 w-8 mx-auto mb-2 text-blue-400" />
-                      <h3 className="font-semibold text-white mb-1">Deep Work</h3>
-                      <p className="text-xs text-white/70">90min uninterrupted focus</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card 
-                    className={`cursor-pointer transition-all duration-200 ${
-                      sessionType === 'work-day' 
-                        ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20' 
-                        : 'bg-white/5 border-white/20 hover:bg-white/10'
-                    }`}
-                    onClick={() => handleSessionTypeChange('work-day')}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Briefcase className="h-8 w-8 mx-auto mb-2 text-green-400" />
-                      <h3 className="font-semibold text-white mb-1">Work Day</h3>
-                      <p className="text-xs text-white/70">8hr day with 1hr breaks</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card 
-                    className={`cursor-pointer transition-all duration-200 ${
-                      sessionType === 'custom' 
-                        ? 'bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/20' 
-                        : 'bg-white/5 border-white/20 hover:bg-white/10'
-                    }`}
-                    onClick={() => handleSessionTypeChange('custom')}
-                  >
-                    <CardContent className="p-4 text-center">
-                      <Timer className="h-8 w-8 mx-auto mb-2 text-purple-400" />
-                      <h3 className="font-semibold text-white mb-1">Custom</h3>
-                      <p className="text-xs text-white/70">Set your own duration</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Pomodoro Settings */}
-                {sessionType === 'pomodoro' && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 space-y-4">
-                    <h4 className="font-semibold text-white flex items-center gap-2">
-                      <Coffee className="h-4 w-4" />
-                      Pomodoro Settings
-                    </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div>
-                        <Label className="text-sm text-white/80">Rounds</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="8"
-                          value={pomodoroRounds}
-                          onChange={(e) => setPomodoroRounds(parseInt(e.target.value))}
-                          className="bg-white/5 border-white/20 text-white text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-white/80">Focus (min)</Label>
-                        <Input
-                          type="number"
-                          min="15"
-                          max="60"
-                          value={focusDuration}
-                          onChange={(e) => setFocusDuration(parseInt(e.target.value))}
-                          className="bg-white/5 border-white/20 text-white text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-white/80">Short Break</Label>
-                        <Input
-                          type="number"
-                          min="3"
-                          max="15"
-                          value={shortBreakDuration}
-                          onChange={(e) => setShortBreakDuration(parseInt(e.target.value))}
-                          className="bg-white/5 border-white/20 text-white text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm text-white/80">Long Break</Label>
-                        <Input
-                          type="number"
-                          min="10"
-                          max="30"
-                          value={longBreakDuration}
-                          onChange={(e) => setLongBreakDuration(parseInt(e.target.value))}
-                          className="bg-white/5 border-white/20 text-white text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Duration and YouTube URL */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Duration - only show for custom sessions */}
-                {sessionType === 'custom' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="duration" className="text-base font-semibold flex items-center gap-2 text-white">
-                      <Timer className="h-4 w-4" />
-                      Duration (minutes)
-                    </Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="1"
-                      max="180"
-                      value={duration}
-                      onChange={(e) => setDuration(parseInt(e.target.value))}
-                      className="text-base bg-white/5 border-white/20 text-white"
-                      required
-                    />
-                    <div className="flex gap-2 mt-2">
-                      {[15, 25, 45, 60, 90].map((preset) => (
-                        <Badge
-                          key={preset}
-                          variant={duration === preset ? "default" : "secondary"}
-                          className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors glass-panel border-white/20"
-                          onClick={() => setDuration(preset)}
-                        >
-                          {preset}m
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Auto-set duration for preset session types */}
-                {sessionType === 'deep-work' && (
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold flex items-center gap-2 text-white">
-                      <Timer className="h-4 w-4" />
-                      Duration
-                    </Label>
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                      <p className="text-white font-semibold">90 minutes</p>
-                      <p className="text-white/70 text-sm">Optimal for deep work sessions</p>
-                    </div>
-                  </div>
-                )}
-
-                {sessionType === 'pomodoro' && (
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold flex items-center gap-2 text-white">
-                      <Timer className="h-4 w-4" />
-                      Total Duration
-                    </Label>
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                      <p className="text-white font-semibold">
-                        {pomodoroRounds * focusDuration + (pomodoroRounds - 1) * shortBreakDuration + longBreakDuration} minutes
-                      </p>
-                      <p className="text-white/70 text-sm">
-                        {pomodoroRounds} rounds of {focusDuration}min focus + breaks
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {sessionType === 'work-day' && (
-                  <div className="space-y-2">
-                    <Label className="text-base font-semibold flex items-center gap-2 text-white">
-                      <Timer className="h-4 w-4" />
-                      Work Day Schedule
-                    </Label>
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                      <p className="text-white font-semibold">8 hours total</p>
-                      <p className="text-white/70 text-sm">
-                        8 rounds of 50min work + 10min breaks + 1hr lunch
-                      </p>
-                      <div className="mt-2 text-xs text-white/60">
-                        <div>• Work blocks: 50 minutes</div>
-                        <div>• Short breaks: 10 minutes</div>
-                        <div>• Lunch break: 60 minutes (after 4th round)</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="youtube" className="text-base font-semibold flex items-center gap-2 text-white">
-                    <Youtube className="h-4 w-4" />
-                    YouTube Video (optional)
-                  </Label>
-                  <Input
-                    id="youtube"
-                    type="url"
-                    placeholder="https://youtube.com/watch?v=..."
-                    value={youtubeUrl}
-                    onChange={(e) => setYoutubeUrl(e.target.value)}
-                    className="text-base bg-white/5 border-white/20 text-white placeholder:text-white/50"
-                  />
-                  {youtubeUrl && !validateYouTubeUrl(youtubeUrl) && (
-                    <p className="text-red-400 text-sm">Please enter a valid YouTube URL</p>
-                  )}
+                <div className="flex gap-2 mt-1">
+                  {[15, 25, 45, 60, 90].map((preset) => (
+                    <Badge
+                      key={preset}
+                      variant={duration === preset ? 'default' : 'secondary'}
+                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors border-white/15"
+                      onClick={() => setDuration(preset)}
+                    >
+                      {preset}m
+                    </Badge>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                size="lg"
-                disabled={!isValid || (youtubeUrl && !validateYouTubeUrl(youtubeUrl))}
-                className="w-full text-lg py-6 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-              >
-                <Lock className="mr-2 h-5 w-5" />
-                Lock In & Start Focus Session
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+            {/* YouTube URL */}
+            <div className="space-y-2">
+              <Label htmlFor="youtube" className="text-sm font-medium text-white/70 flex items-center gap-2">
+                <Youtube className="h-3.5 w-3.5" />
+                Background video (optional)
+              </Label>
+              <Input
+                id="youtube"
+                type="url"
+                placeholder="https://youtube.com/watch?v=..."
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                className="text-base bg-white/5 border-white/10 text-white placeholder:text-white/25 focus:border-white/30"
+              />
+              {youtubeUrl && !validateYouTubeUrl(youtubeUrl) && (
+                <p className="text-red-400 text-sm">Please enter a valid YouTube URL</p>
+              )}
+            </div>
 
-      {/* Hidden File Input */}
+            {/* Submit */}
+            <Button
+              type="submit"
+              size="lg"
+              disabled={!isValid || !!(youtubeUrl && !validateYouTubeUrl(youtubeUrl))}
+              className="w-full h-12 text-base bg-white text-black hover:bg-white/90 font-semibold rounded-xl transition-all duration-200 disabled:opacity-40"
+            >
+              <Lock className="mr-2 h-4 w-4" />
+              Start Focus Session
+            </Button>
+          </form>
+        </div>
+      </main>
+
+      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -409,7 +355,6 @@ export function ClockoutTaskInput({ onStartSession }: ClockoutTaskInputProps) {
         className="hidden"
       />
 
-      {/* Modals */}
       <ContributionCalendar isOpen={showCalendar} onClose={() => setShowCalendar(false)} />
     </div>
   );
