@@ -1,18 +1,28 @@
 stages:
   - deploy
 
+variables:
+  APP_DIR: /home/gitlab-runner/deep-focus-timer
+  OLD_DIR: /home/gitlab-runner/clockout_clone
+
 deploy:
   stage: deploy
   script:
+    # One-time move from the old repo name: stop the old stack so it frees
+    # port 3000, then drop its checkout.
     - |
-      if [ ! -d "/home/gitlab-runner/ankiweb/.git" ]; then
-        git clone https://gitlab.j551n.com/j551n/clockout_clone.git /home/gitlab-runner/clockout_clone
-      else
-        cd /home/gitlab-runner/clockout_clone && git pull origin main
+      if [ -d "$OLD_DIR" ]; then
+        (cd "$OLD_DIR" && docker compose down) || true
+        rm -rf "$OLD_DIR"
       fi
-    - cd /home/gitlab-runner/clockout_clone
-    - docker compose stop calendar-app || true  # Stop the service if running
-    - docker compose up --build -d
+    - |
+      if [ ! -d "$APP_DIR/.git" ]; then
+        git clone https://gitlab.j551n.com/j551n/deep-focus-timer.git "$APP_DIR"
+      else
+        git -C "$APP_DIR" pull origin main
+      fi
+    - cd "$APP_DIR"
+    - docker compose up --build -d calendar-app
   only:
     - main
     - shared
